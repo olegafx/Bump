@@ -1,11 +1,13 @@
 import os
 import json
+from functools import cmp_to_key
 from string import Template
 from urllib import request
 from urllib.parse import urljoin
-from . import settings as conf
 
+from . import settings as conf
 from . import defaults
+from .lib import semver
 
 def get_request(pathname):
     webURL = request.urlopen(pathname)
@@ -18,5 +20,9 @@ def fetch_package_version(package, version, callback = None):
     pathname = urljoin(registry, package.replace('/', '%2F'))
     pathname = Template('$pathname?version=$version').substitute(pathname=pathname, version=version)
     response = get_request(pathname)
-    if (callback):
-        callback(response['version'])
+
+    if (callback and ('versions' in response)):
+        orderedVersions = sorted(response['versions'].keys(), key=cmp_to_key(lambda v1, v2: semver.rcompare(v1, v2, loose=True)))
+        latestVersion = next(iter(orderedVersions))
+
+        callback(latestVersion)
